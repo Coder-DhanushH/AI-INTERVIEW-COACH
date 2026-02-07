@@ -26,7 +26,7 @@ const Login = () => {
     setLoading(true);
     setError('');
 
-    const result = await login(formData.username, formData.password);
+    const result = await login(formData.username, formData.password, rememberMe);
     
     if (result.success) {
       navigate('/dashboard');

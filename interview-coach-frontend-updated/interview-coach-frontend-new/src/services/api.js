@@ -28,9 +28,31 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Token expired or invalid
+      console.log('Unauthorized - Token expired or invalid');
+      
+      // Clear auth data
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      localStorage.removeItem('tokenExpiry');
+      
+      // Use global logout if available (from AuthContext)
+      if (window.authLogout) {
+        window.authLogout();
+      } else {
+        // Fallback: redirect to login
+        window.location.href = '/login';
+      }
     }
+    
+    // Handle other errors
+    if (error.response?.status === 403) {
+      console.error('Access forbidden');
+    }
+    
+    if (error.response?.status >= 500) {
+      console.error('Server error:', error.response?.data?.detail);
+    }
+    
     return Promise.reject(error);
   }
 );
