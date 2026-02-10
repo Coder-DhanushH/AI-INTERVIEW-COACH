@@ -82,7 +82,7 @@ const Login = () => {
             {/* Email/Username Field */}
             <div>
               <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
-                Email Address
+                User Name
               </label>
               <input
                 type="text"
@@ -91,7 +91,7 @@ const Login = () => {
                 value={formData.username}
                 onChange={handleChange}
                 required
-                placeholder="you@example.com"
+                placeholder="Enter your username"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
               />
             </div>
