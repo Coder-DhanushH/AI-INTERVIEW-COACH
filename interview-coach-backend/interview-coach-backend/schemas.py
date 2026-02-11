@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from datetime import datetime
+from pydantic import BaseModel
 
 # User Schemas
 class UserBase(BaseModel):
@@ -58,3 +59,7 @@ class UserWithResume(UserResponse):
     
     class Config:
         from_attributes = True
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str

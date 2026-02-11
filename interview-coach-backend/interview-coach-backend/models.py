@@ -2,7 +2,8 @@ from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
-
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.sql import func
 class User(Base):
     __tablename__ = "users"
 
@@ -34,3 +35,14 @@ class Resume(Base):
     
     # Relationship
     user = relationship("User", back_populates="resume")
+
+class PasswordResetToken(Base):
+    """Password reset token model"""
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token = Column(String(255), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used = Column(Integer, default=0)  # 0 = not used, 1 = used
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

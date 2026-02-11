@@ -302,6 +302,21 @@ CREATE TABLE resumes (
 );
 ```
 
+### Forget Password tokens table
+```sql
+CREATE TABLE password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_password_reset_token ON password_reset_tokens(token);
+CREATE INDEX idx_password_reset_user ON password_reset_tokens(user_id);
+```
+
 ## Common Issues & Solutions
 
 ### Issue: Database connection failed
