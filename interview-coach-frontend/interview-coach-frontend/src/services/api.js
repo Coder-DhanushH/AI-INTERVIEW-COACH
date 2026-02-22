@@ -84,11 +84,32 @@ export const resumeAPI = {
   delete: () => api.delete('/api/resume/'),
 };
 
+// API for fetching and generating questions
+export const questionsAPI = {
+  generate: (data) => api.post('/api/questions/generate', data),
+  getCategories: () => api.get('/api/questions/categories'),
+  getByCategory: (categoryId, difficulty = null) => {
+    let url = `/api/questions/by-category/${categoryId}`;
+    if (difficulty) url += `?difficulty=${difficulty}`;
+    return api.get(url);
+  },
+};
+
 // Stats APIs
 export const statsAPI = {
   getDashboard: () => api.get('/api/stats/dashboard'),
   getPerformanceHistory: () => api.get('/api/stats/performance-history'),
   getCategoryBreakdown: () => api.get('/api/stats/category-breakdown'),
+};
+
+// Session APIs
+export const sessionsAPI = {
+  start: (data) => api.post('/api/sessions/start', data),
+  getSession: (sessionId) => api.get(`/api/sessions/${sessionId}`),
+  submitAnswer: (sessionId, data) => api.post(`/api/sessions/${sessionId}/answer`, data),
+  complete: (sessionId) => api.post(`/api/sessions/${sessionId}/complete`),
+  getUserHistory: () => api.get('/api/sessions/user/history'),
+  getSessionDetails: (sessionId) => api.get(`/api/sessions/${sessionId}`),
 };
 
 export default api;

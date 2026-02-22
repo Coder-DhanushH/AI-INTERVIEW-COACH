@@ -37,3 +37,8 @@ build/
 # Temporary files
 tmp/
 temp/
+
+#venv file
+venv/
+__pycache__/
+*.pyc

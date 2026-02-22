@@ -63,6 +63,90 @@ CREATE INDEX idx_resumes_user_id ON resumes(user_id);
 CREATE INDEX idx_resumes_uploaded_at ON resumes(uploaded_at);
 
 -- ================================================================
+-- Password Reset Tokens Table
+-- Stores tokens for password reset functionality
+-- ================================================================
+
+
+CREATE TABLE password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_password_reset_token ON password_reset_tokens(token);
+CREATE INDEX idx_password_reset_user ON password_reset_tokens(user_id);
+
+-- Categories Table
+CREATE TABLE question_categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Predefined categories
+INSERT INTO question_categories (name, description) VALUES
+('Software Development', 'Technical questions for SDE roles'),
+('Data Science', 'Questions for data science and ML roles'),
+('Product Management', 'Product strategy and management'),
+('Marketing', 'Marketing strategy and campaigns'),
+('Finance', 'Financial analysis and management'),
+('Business Analyst', 'Business analysis and requirements'),
+('DevOps', 'DevOps and infrastructure questions'),
+('UI/UX Design', 'Design thinking and user experience');
+
+-- Questions Table
+CREATE TABLE questions (
+    id SERIAL PRIMARY KEY,
+    category_id INTEGER REFERENCES question_categories(id),
+    question_text TEXT NOT NULL,
+    difficulty VARCHAR(20) CHECK (difficulty IN ('Easy', 'Medium', 'Hard')),
+    question_type VARCHAR(50), -- 'behavioral', 'technical', 'situational'
+    is_ai_generated BOOLEAN DEFAULT FALSE,
+    metadata JSONB, -- Store additional info like expected keywords, time limit
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Interview Sessions Table
+CREATE TABLE interview_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    category_id INTEGER REFERENCES question_categories(id),
+    difficulty VARCHAR(20),
+    total_questions INTEGER,
+    completed_questions INTEGER DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'in_progress', -- 'in_progress', 'completed', 'abandoned'
+    started_at TIMESTAMP DEFAULT NOW(),
+    completed_at TIMESTAMP
+);
+
+-- Session Questions (many-to-many)
+CREATE TABLE session_questions (
+    id SERIAL PRIMARY KEY,
+    session_id INTEGER REFERENCES interview_sessions(id) ON DELETE CASCADE,
+    question_id INTEGER REFERENCES questions(id),
+    question_order INTEGER,
+    answer_text TEXT,
+    time_taken INTEGER, -- seconds
+    answered_at TIMESTAMP,
+    score INTEGER, -- 0-100, filled later by evaluation
+    feedback TEXT -- filled later by evaluation
+);
+
+-- Indexes
+CREATE INDEX idx_questions_category ON questions(category_id);
+CREATE INDEX idx_questions_difficulty ON questions(difficulty);
+CREATE INDEX idx_sessions_user ON interview_sessions(user_id);
+CREATE INDEX idx_sessions_status ON interview_sessions(status);
+-- Session questions table indexes
+CREATE INDEX idx_session_questions_session ON session_questions(session_id);
+CREATE INDEX idx_session_questions_question ON session_questions(question_id);
+
+-- ================================================================
 -- TRIGGER: Update updated_at timestamp automatically
 -- ================================================================
 

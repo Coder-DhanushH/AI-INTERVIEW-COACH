@@ -8,7 +8,7 @@ from database import get_db
 from models import User, Resume
 from schemas import ResumeResponse
 from auth import get_current_user
-from pdf_parser import parse_pdf, validate_pdf
+from pdf_parser import parse_pdf, validate_pdf, extract_skills_from_text  # Add import for skill extraction
 
 router = APIRouter(prefix="/api/resume", tags=["Resume"])
 
@@ -67,6 +67,8 @@ async def upload_resume(
         # Parse PDF text
         parsed_text = parse_pdf(file_path)
         
+        extracted_skills = extract_skills_from_text(parsed_text)
+        
         # Check if user already has a resume
         existing_resume = db.query(Resume).filter(Resume.user_id == current_user.id).first()
         
@@ -79,6 +81,7 @@ async def upload_resume(
             existing_resume.filename = file.filename
             existing_resume.file_path = file_path
             existing_resume.parsed_text = parsed_text
+            existing_resume.extracted_skills = extracted_skills
             existing_resume.uploaded_at = datetime.utcnow()
             db_resume = existing_resume
         else:
@@ -87,7 +90,8 @@ async def upload_resume(
                 user_id=current_user.id,
                 filename=file.filename,
                 file_path=file_path,
-                parsed_text=parsed_text
+                parsed_text=parsed_text,
+                extracted_skills=extracted_skills
             )
             db.add(db_resume)
         

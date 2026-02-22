@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, Dict, List
 from datetime import datetime
 from pydantic import BaseModel
 
@@ -50,6 +50,7 @@ class ResumeResponse(BaseModel):
     filename: str
     uploaded_at: datetime
     parsed_text: Optional[str] = None
+    extracted_skills: Optional[Dict[str, List[str]]] = None
     
     class Config:
         from_attributes = True

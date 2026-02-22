@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import datetime, timedelta
 
 from database import get_db
-from models import User
+from models import User, InterviewSession, SessionQuestion
 from auth import get_current_user
 
 router = APIRouter(prefix="/api/stats", tags=["Statistics"])
@@ -13,56 +14,54 @@ async def get_dashboard_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Get dashboard statistics for current user
+    """Get comprehensive dashboard statistics"""
     
-    Returns:
-    - practice_sessions: Number of practice sessions attended
-    - interviews_completed: Total interviews completed
-    - performance_rating: Average performance rating (0-5)
-    - improvement: Percentage improvement
-    - progress_this_week: Sessions completed this week
-    """
+    # Basic counts
+    practice_sessions = db.query(InterviewSession).filter(
+        InterviewSession.user_id == current_user.id
+    ).count()
     
-    # TODO: Replace with actual data from database when tables are created
-    # For now, returning mock data to make frontend work
+    interviews_completed = db.query(InterviewSession).filter(
+        InterviewSession.user_id == current_user.id,
+        InterviewSession.status == 'completed'
+    ).count()
     
-    # In Milestone 2-3, you'll create tables like:
-    # - interview_sessions
-    # - interview_responses
-    # - performance_metrics
+    # Performance rating (based on completion rate for now)
+    if practice_sessions > 0:
+        completion_rate = (interviews_completed / practice_sessions)
+        performance_rating = round(completion_rate * 5, 1)
+    else:
+        performance_rating = 0.0
     
-    # Mock data for now (will be replaced with real queries)
-    stats = {
-        "practice_sessions": 12,
-        "interviews_completed": 8,
-        "performance_rating": 4.5,
-        "improvement": 15,  # percentage
-        "progress_this_week": 3,
-        "total_questions_answered": 45,
-        "average_score": 85,  # out of 100
-        "strongest_area": "Technical Skills",
-        "improvement_area": "Communication",
+    # This week vs last week
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    two_weeks_ago = datetime.utcnow() - timedelta(days=14)
+    
+    sessions_this_week = db.query(InterviewSession).filter(
+        InterviewSession.user_id == current_user.id,
+        InterviewSession.started_at >= week_ago
+    ).count()
+    
+    sessions_last_week = db.query(InterviewSession).filter(
+        InterviewSession.user_id == current_user.id,
+        InterviewSession.started_at >= two_weeks_ago,
+        InterviewSession.started_at < week_ago
+    ).count()
+    
+    # Calculate improvement
+    if sessions_last_week > 0:
+        improvement = round(((sessions_this_week - sessions_last_week) / sessions_last_week) * 100)
+    else:
+        improvement = 0 if sessions_this_week == 0 else 100
+    
+    return {
+        "practice_sessions": practice_sessions,
+        "interviews_completed": interviews_completed,
+        "performance_rating": performance_rating,
+        "improvement": improvement,
+        "progress_this_week": sessions_this_week
     }
-    
-    # When you have real data, queries will look like:
-    # practice_sessions = db.query(InterviewSession).filter(
-    #     InterviewSession.user_id == current_user.id
-    # ).count()
-    
-    # interviews_completed = db.query(InterviewSession).filter(
-    #     InterviewSession.user_id == current_user.id,
-    #     InterviewSession.status == "completed"
-    # ).count()
-    
-    # Calculate week range
-    # week_start = datetime.now() - timedelta(days=datetime.now().weekday())
-    # progress_this_week = db.query(InterviewSession).filter(
-    #     InterviewSession.user_id == current_user.id,
-    #     InterviewSession.created_at >= week_start
-    # ).count()
-    
-    return stats
+
 
 @router.get("/performance-history")
 async def get_performance_history(
@@ -70,18 +69,51 @@ async def get_performance_history(
     db: Session = Depends(get_db)
 ):
     """
-    Get performance history over time for analytics
-    Returns data for charts/graphs
+    Get performance history for charts
+    Returns last 7 days of data
     """
     
-    # Mock data - will be replaced with real queries
-    history = {
-        "labels": ["Week 1", "Week 2", "Week 3", "Week 4"],
-        "scores": [70, 75, 82, 85],
-        "sessions": [2, 3, 4, 3]
-    }
+    history = []
     
-    return history
+    for i in range(6, -1, -1):  # Last 7 days
+        date = datetime.utcnow() - timedelta(days=i)
+        start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
+        
+        # Count sessions for this day
+        sessions_count = db.query(InterviewSession).filter(
+            InterviewSession.user_id == current_user.id,
+            InterviewSession.started_at >= start_of_day,
+            InterviewSession.started_at < end_of_day
+        ).count()
+        
+        completed_count = db.query(InterviewSession).filter(
+            InterviewSession.user_id == current_user.id,
+            InterviewSession.status == 'completed',
+            InterviewSession.started_at >= start_of_day,
+            InterviewSession.started_at < end_of_day
+        ).count()
+        
+        # Count questions answered
+        questions_answered = db.query(SessionQuestion).join(InterviewSession).filter(
+            InterviewSession.user_id == current_user.id,
+            SessionQuestion.answer_text.isnot(None),
+            InterviewSession.started_at >= start_of_day,
+            InterviewSession.started_at < end_of_day
+        ).count()
+        
+        history.append({
+            "date": start_of_day.strftime("%Y-%m-%d"),
+            "day": start_of_day.strftime("%a"),  # Mon, Tue, etc.
+            "sessions": sessions_count,
+            "completed": completed_count,
+            "questions_answered": questions_answered
+        })
+    
+    return {
+        "history": history
+    }
+
 
 @router.get("/category-breakdown")
 async def get_category_breakdown(
@@ -89,17 +121,30 @@ async def get_category_breakdown(
     db: Session = Depends(get_db)
 ):
     """
-    Get performance breakdown by category
-    For radar charts and detailed analytics
+    Get performance breakdown by category/role
+    For pie/radar charts
     """
     
-    # Mock data - will be replaced with real queries
-    breakdown = {
-        "technical_skills": 85,
-        "communication": 75,
-        "problem_solving": 90,
-        "leadership": 70,
-        "behavioral": 80
-    }
+    from models import QuestionCategory
     
-    return breakdown
+    # Get all categories
+    categories = db.query(QuestionCategory).all()
+    
+    breakdown = []
+    
+    for category in categories:
+        # Count sessions for this category
+        count = db.query(InterviewSession).filter(
+            InterviewSession.user_id == current_user.id,
+            InterviewSession.category_id == category.id
+        ).count()
+        
+        if count > 0:  # Only include categories with sessions
+            breakdown.append({
+                "category": category.name,
+                "sessions": count
+            })
+    
+    return {
+        "breakdown": breakdown
+    }

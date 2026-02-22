@@ -1,13 +1,30 @@
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { userAPI, resumeAPI, statsAPI } from '../services/api';
+import { userAPI, resumeAPI, statsAPI, sessionsAPI } from '../services/api';
+
+const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard', 'profile', or 'editProfile'
+  const [activeView, setActiveView] = useState('dashboard'); // Now supports: 'dashboard', 'profile', 'editProfile', 'history'
+  const [performanceHistory, setPerformanceHistory] = useState([]);
+  const [categoryBreakdown, setCategoryBreakdown] = useState([]);
+  const [showGraphs, setShowGraphs] = useState(false);
+
+  // Session history state
+  const [sessionHistory, setSessionHistory] = useState({
+    total_sessions: 0,
+    completed_count: 0,
+    in_progress_count: 0,
+    category_breakdown: [],
+    sessions: []
+  });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(null);
   
   // Stats state
   const [stats, setStats] = useState({
@@ -17,7 +34,7 @@ const Dashboard = () => {
     improvement: 0,
     progressThisWeek: 0,
   });
-  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(false);
   
   // Profile state
   const [profileData, setProfileData] = useState({
@@ -32,6 +49,7 @@ const Dashboard = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
+  const [resumeData, setResumeData] = useState(null);
 
   useEffect(() => {
     if (user) {
@@ -49,6 +67,10 @@ const Dashboard = () => {
       
       // Fetch dashboard stats
       fetchDashboardStats();
+      // Fetch performance data for graphs
+      fetchPerformanceData();
+       // Fetch resume data with extracted skills
+      fetchResumeData();
     }
   }, [user]);
 
@@ -70,6 +92,64 @@ const Dashboard = () => {
       // Keep default stats if API fails
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  const fetchPerformanceData = async () => {
+    try {
+      // Fetch performance history
+      const historyResponse = await statsAPI.getPerformanceHistory();
+      setPerformanceHistory(historyResponse.data.history);
+      
+      // Fetch category breakdown
+      const categoryResponse = await statsAPI.getCategoryBreakdown();
+      setCategoryBreakdown(categoryResponse.data.breakdown);
+    } catch (error) {
+      console.error('Failed to fetch performance data:', error);
+    }
+  };
+
+  const fetchSessionHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      setHistoryError(null);
+      const response = await sessionsAPI.getUserHistory();
+      console.log('Session history response:', response.data);
+      setSessionHistory(response.data);
+    } catch (error) {
+      console.error('Failed to fetch session history:', error);
+      setHistoryError(error.response?.data?.detail || error.message || 'Failed to load history. Please try again.');
+      // Reset to empty state on error
+      setSessionHistory({
+        total_sessions: 0,
+        completed_count: 0,
+        in_progress_count: 0,
+        category_breakdown: [],
+        sessions: []
+      });
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Call in useEffect
+  useEffect(() => {
+    if (user && activeView === 'history') {
+      fetchSessionHistory();
+    }
+  }, [user, activeView]);
+
+
+  const fetchResumeData = async () => {
+    try {
+      const response = await resumeAPI.get();
+      if (response.data) {
+        setResumeData(response.data);
+        setResume(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch resume:', error);
+      // Resume might not exist yet, that's okay
     }
   };
 
@@ -156,6 +236,15 @@ const Dashboard = () => {
     }
     setLoading(false);
   };
+
+  const renderPieChart = () => {
+    return categoryBreakdown.map((entry, index) => ({
+      ...entry,
+      fill: COLORS[index % COLORS.length]
+    }));
+  };
+  
+  const formattedData = renderPieChart();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
@@ -308,7 +397,9 @@ const Dashboard = () => {
               <h2 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* New Interview */}
-                <button className="flex items-center space-x-4 p-4 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors">
+                <button 
+                  onClick={() => navigate('/question-setup')}                  
+                  className="flex items-center space-x-4 p-4 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors">
                   <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -317,6 +408,22 @@ const Dashboard = () => {
                   <div className="text-left">
                     <p className="font-semibold">New Interview</p>
                     <p className="text-sm opacity-90">Start a practice session</p>
+                  </div>
+                </button>
+
+                {/* Interview History - NEW ⭐ */}
+                <button 
+                  onClick={() => setActiveView('history')}
+                  className="flex items-center space-x-4 p-4 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg transition-colors"
+                >
+                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold">History</p>
+                    <p className="text-sm text-gray-600">Past sessions</p>
                   </div>
                 </button>
 
@@ -337,7 +444,18 @@ const Dashboard = () => {
                 </button>
 
                 {/* View Analytics */}
-                <button className="flex items-center space-x-4 p-4 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg transition-colors">
+                <button 
+                  onClick={() => {
+                    setShowGraphs(true);
+                    // Scroll to graphs
+                    setTimeout(() => {
+                      document.querySelector('.performance-analytics')?.scrollIntoView({ 
+                        behavior: 'smooth' 
+                      });
+                    }, 100);
+                  }}
+                  className="flex items-center space-x-4 p-4 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg transition-colors"
+                >
                   <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
                     <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -350,6 +468,122 @@ const Dashboard = () => {
                 </button>
               </div>
             </div>
+
+            {/* Performance Graphs Section */}
+            {activeView === 'dashboard' && (
+              <div className="mt-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Performance Analytics</h2>
+                  <button
+                    onClick={() => setShowGraphs(!showGraphs)}
+                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center space-x-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <span>{showGraphs ? 'Hide' : 'Show'} Graphs</span>
+                  </button>
+                </div>
+
+                {showGraphs && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    {/* Line Chart - 7 Day Activity */}
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">7-Day Activity</h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={performanceHistory}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="day" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Line type="monotone" dataKey="sessions" stroke="#2563EB" name="Sessions Started" strokeWidth={2} />
+                          <Line type="monotone" dataKey="completed" stroke="#10B981" name="Sessions Completed" strokeWidth={2} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Bar Chart - Questions Answered */}
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Questions Answered (7 Days)</h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={performanceHistory}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="day" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Bar dataKey="questions_answered" fill="#2563EB" name="Questions" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Pie Chart - Category Distribution */}
+                    {categoryBreakdown.length > 0 && (
+                      <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Interview Categories</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <PieChart>
+                            <Pie
+                              data={formattedData}
+                              dataKey="sessions"
+                              nameKey="category"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={100}
+                              label={(entry) => `${entry.category}: ${entry.sessions}`}
+                            >
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Performance Summary Card */}
+                    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Summary</h3>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Completion Rate</span>
+                          <span className="text-2xl font-bold text-primary">
+                            {stats.practiceSessions > 0 
+                              ? Math.round((stats.interviewsCompleted / stats.practiceSessions) * 100)
+                              : 0}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-primary h-2 rounded-full"
+                            style={{ 
+                              width: `${stats.practiceSessions > 0 
+                                ? (stats.interviewsCompleted / stats.practiceSessions) * 100 
+                                : 0}%` 
+                            }}
+                          />
+                        </div>
+
+                        <div className="pt-4 border-t">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-gray-600">Total Time Practicing</span>
+                            <span className="text-xl font-bold text-gray-900">
+                              {Math.round(stats.practiceSessions * 15)} min
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600">Avg. Session Time</span>
+                            <span className="text-xl font-bold text-gray-900">15 min</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
+
           </>
         ) : activeView === 'profile' ? (
           /* View Profile (Read-Only) */
@@ -477,30 +711,185 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* Resume Section */}
+            {/* Resume Section with Skills */}
             <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Resume</h2>
               
               {resume ? (
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                      </svg>
+                <>
+                  {/* Resume File Info */}
+                  <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">{resume.filename}</p>
+                        <p className="text-sm text-gray-500">Uploaded: {new Date(resume.uploaded_at).toLocaleDateString()}</p>
+                      </div>
+                      <button
+                        onClick={() => setActiveView('editProfile')}
+                        className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
+                      >
+                        Update Resume
+                      </button>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{resume.filename}</p>
-                      <p className="text-sm text-gray-500">Uploaded: {new Date(resume.uploaded_at).toLocaleDateString()}</p>
-                    </div>
-                    <button
-                      onClick={() => setActiveView('editProfile')}
-                      className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                    >
-                      Update Resume
-                    </button>
                   </div>
-                </div>
+
+                  {/* Extracted Skills Section - NEW ⭐ */}
+                  { resumeData?.extracted_skills && Object.keys( resumeData?.extracted_skills).length > 0 && (
+                    <div className="border-t pt-6">
+                      <div className="flex items-center mb-4">
+                        <svg className="w-6 h-6 text-primary mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <h3 className="text-xl font-bold text-gray-900">Extracted Skills</h3>
+                      </div>
+
+                      <div className="space-y-4">
+                        {/* Programming Languages */}
+                        { resumeData?.extracted_skills.programming_languages && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                              Programming Languages
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              { resumeData?.extracted_skills.programming_languages.map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Frameworks & Libraries */}
+                        { resumeData?.extracted_skills.frameworks_libraries && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                              Frameworks & Libraries
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              { resumeData?.extracted_skills.frameworks_libraries.map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Databases */}
+                        { resumeData?.extracted_skills.databases && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                              Databases
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              { resumeData?.extracted_skills.databases.map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Cloud & DevOps */}
+                        { resumeData?.extracted_skills.cloud_devops && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                              Cloud & DevOps
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              { resumeData?.extracted_skills.cloud_devops.map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Tools */}
+                        { resumeData?.extracted_skills.tools && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                              Tools & Technologies
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              { resumeData?.extracted_skills.tools.map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Soft Skills */}
+                        { resumeData?.extracted_skills.soft_skills && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                              Soft Skills
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              { resumeData?.extracted_skills.soft_skills.map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full text-sm font-medium"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Summary Count */}
+                      <div className="mt-6 pt-6 border-t">
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                          <div>
+                            <div className="text-2xl font-bold text-primary">
+                              {Object.values( resumeData?.extracted_skills).flat().length}
+                            </div>
+                            <div className="text-sm text-gray-600">Total Skills</div>
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold text-primary">
+                              {Object.keys( resumeData?.extracted_skills).length}
+                            </div>
+                            <div className="text-sm text-gray-600">Categories</div>
+                          </div>
+                          <div>
+                            <div className="text-2xl font-bold text-primary">
+                              { resumeData?.extracted_skills.programming_languages?.length || 0}
+                            </div>
+                            <div className="text-sm text-gray-600">Languages</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-8 text-gray-500">
                   <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -513,6 +902,178 @@ const Dashboard = () => {
                   >
                     Upload Resume
                   </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ): activeView === 'history' ?(
+          <div className="max-w-6xl mx-auto">
+            <div className="mb-6">
+              <button
+                onClick={() => setActiveView('dashboard')}
+                className="flex items-center text-primary hover:text-primary-dark"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Dashboard
+              </button>
+            </div>
+
+            <h1 className="text-3xl font-bold text-gray-900 mb-8">Interview History</h1>
+
+            {/* Loading State */}
+            {historyLoading && (
+              <div className="bg-white rounded-xl p-8 shadow-sm border text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin">
+                    <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="text-gray-600">Loading your interview history...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {historyError && !historyLoading && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-6">
+                <div className="flex items-start">
+                  <svg className="w-6 h-6 text-red-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0-12a9 9 0 110 18 9 9 0 010-18z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="text-red-900 font-semibold mb-1">Failed to Load History</h3>
+                    <p className="text-red-800 text-sm mb-4">{historyError}</p>
+                    <button
+                      onClick={fetchSessionHistory}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Summary Cards */}
+            {!historyLoading && !historyError && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <div className="bg-white rounded-xl p-6 shadow-sm border">
+                    <div className="text-sm text-gray-600 mb-1">Total Sessions</div>
+                    <div className="text-3xl font-bold text-gray-900">
+                      {sessionHistory.total_sessions}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-6 shadow-sm border">
+                    <div className="text-sm text-gray-600 mb-1">Completed</div>
+                    <div className="text-3xl font-bold text-green-600">
+                      {sessionHistory.completed_count}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl p-6 shadow-sm border">
+                    <div className="text-sm text-gray-600 mb-1">In Progress</div>
+                    <div className="text-3xl font-bold text-yellow-600">
+                      {sessionHistory.in_progress_count}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Category Breakdown */}
+                <div className="bg-white rounded-xl p-6 shadow-sm border mb-8">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">Sessions by Category</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {sessionHistory.category_breakdown.map((cat, index) => (
+                      <div key={index} className="bg-gray-50 rounded-lg p-4">
+                        <div className="text-2xl font-bold text-primary">{cat.count}</div>
+                        <div className="text-sm text-gray-600">{cat.category}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Sessions List */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Sessions</h2>
+              
+              {sessionHistory.sessions.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-lg font-semibold mb-2">No sessions yet</p>
+                  <p className="mb-4">Start your first interview to see history here</p>
+                  <button
+                    onClick={() => navigate('/question-setup')}
+                    className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg"
+                  >
+                    Start New Interview
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {sessionHistory.sessions.map((session) => (
+                    <div key={session.id} className="border rounded-lg p-4 hover:bg-gray-50 transition">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                              session.status === 'completed' 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {session.status === 'completed' ? '✓ Completed' : '⏸ In Progress'}
+                            </span>
+                            <span className="text-lg font-semibold text-gray-900">
+                              {session.category}
+                            </span>
+                            <span className={`text-sm px-2 py-1 rounded ${
+                              session.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
+                              session.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>
+                              {session.difficulty}
+                            </span>
+                          </div>
+                          
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <div>
+                              <strong>Questions:</strong> {session.completed_questions}/{session.total_questions} answered
+                            </div>
+                            <div>
+                              <strong>Started:</strong> {new Date(session.started_at).toLocaleString()}
+                            </div>
+                            {session.completed_at && (
+                              <div>
+                                <strong>Duration:</strong> {Math.round(session.duration_minutes)} minutes
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex space-x-2">
+                          {session.status === 'in_progress' && (
+                            <button
+                              onClick={() => navigate(`/interview-session/${session.id}`)}
+                              className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg text-sm"
+                            >
+                              Resume
+                            </button>
+                          )}
+                          <button
+                            onClick={() => navigate(`/session-details/${session.id}`)}
+                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm"
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
