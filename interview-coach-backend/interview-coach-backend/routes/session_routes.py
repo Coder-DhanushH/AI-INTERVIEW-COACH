@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from database import get_db
 from models import User, InterviewSession, SessionQuestion, Question, QuestionCategory
 from auth import get_current_user
+from sqlalchemy import func
 
 router = APIRouter(prefix="/api/sessions", tags=["Sessions"])
 
@@ -87,7 +88,6 @@ async def get_user_sessions(
 ):
     """Get all sessions for current user with category breakdown"""
     
-    from sqlalchemy import func
     
     # Get all sessions
     sessions = db.query(InterviewSession).filter(

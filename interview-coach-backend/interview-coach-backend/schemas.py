@@ -64,3 +64,20 @@ class UserWithResume(UserResponse):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+class QuestionGenerateRequest(BaseModel):
+    category_id: int
+    difficulty: str  # "Easy", "Medium", "Hard"
+    count: int = 5
+    question_type: str = "mixed"  # "behavioral", "technical", "mixed"
+
+class QuestionResponse(BaseModel):
+    id: int
+    category_id: int
+    question_text: str
+    difficulty: str
+    question_type: str
+    is_ai_generated: bool
+    
+    class Config:
+        from_attributes = True

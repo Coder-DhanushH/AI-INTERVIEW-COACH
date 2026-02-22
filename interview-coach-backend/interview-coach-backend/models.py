@@ -1,9 +1,13 @@
+from pydantic import BaseModel
+
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
+from typing import List, Optional
+from pydantic import BaseModel
 class User(Base):
     __tablename__ = "users"
 
@@ -72,6 +76,22 @@ class Question(Base):
     question_metadata = Column(JSONB, nullable=True, default=lambda: {})  # Store additional info
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+class QuestionGenerateRequest(BaseModel):
+    category_id: int
+    difficulty: str  # "Easy", "Medium", "Hard"
+    count: int = 5
+    question_type: str = "mixed"  # "behavioral", "technical", "mixed"
+
+class QuestionResponse(BaseModel):
+    id: int
+    category_id: int
+    question_text: str
+    difficulty: str
+    question_type: str
+    is_ai_generated: bool
+    
+    class Config:
+        from_attributes = True
 
 class InterviewSession(Base):
     """Interview sessions (practice interviews)"""

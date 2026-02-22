@@ -17,19 +17,18 @@ const InterviewSession = () => {
   const [loading, setLoading] = useState(false);
   const [fetchingSession, setFetchingSession] = useState(false);
 
-  useEffect(() => {
-    if (urlSessionId) {
-      // ⭐ FIX: Load existing session from URL
-      fetchExistingSession();
-    } else if (location.state?.questions) {
-      // ⭐ FIX: Only create new session if we have questions
-      startSession();
-    } else {
-      // ⭐ FIX: No session ID or questions, redirect
-      console.error('No session ID or questions provided');
-      navigate('/question-setup');
-    }
-  }, [urlSessionId]);
+useEffect(() => {
+  if (urlSessionId) {
+    fetchExistingSession();
+  } else if (location.state?.sessionId && location.state?.questions) {
+    // ✅ Session already created by QuestionSetup, just use it
+    setSessionId(location.state.sessionId);
+    setQuestions(location.state.questions);
+    setQuestionStartTime(Date.now());
+  } else {
+    navigate('/question-setup');
+  }
+}, [urlSessionId]);
 
   useEffect(() => {
     let interval;

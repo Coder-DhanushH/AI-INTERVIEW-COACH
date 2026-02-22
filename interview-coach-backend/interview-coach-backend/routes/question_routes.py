@@ -4,29 +4,11 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from database import get_db
-from models import User, QuestionCategory, Question
+from models import User, QuestionCategory, Question, QuestionGenerateRequest, QuestionResponse
 from auth import get_current_user
 from services.llm_service import LLMService
 
 router = APIRouter(prefix="/api/questions", tags=["Questions"])
-
-# Schemas
-class QuestionGenerateRequest(BaseModel):
-    category_id: int
-    difficulty: str  # "Easy", "Medium", "Hard"
-    count: int = 5
-    question_type: str = "mixed"  # "behavioral", "technical", "mixed"
-
-class QuestionResponse(BaseModel):
-    id: int
-    category_id: int
-    question_text: str
-    difficulty: str
-    question_type: str
-    is_ai_generated: bool
-    
-    class Config:
-        from_attributes = True
 
 @router.post("/generate")
 async def generate_questions(
