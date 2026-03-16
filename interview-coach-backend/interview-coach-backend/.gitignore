@@ -42,3 +42,7 @@ temp/
 venv/
 __pycache__/
 *.pyc
+
+uploads/
+audio/
+resumes/

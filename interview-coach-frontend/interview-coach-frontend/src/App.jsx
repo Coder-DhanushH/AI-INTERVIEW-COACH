@@ -12,6 +12,9 @@ import QuestionSetup from './pages/QuestionSetup';
 import InterviewSession from './pages/InterviewSession';
 import SessionDetails from './pages/SessionDetails';
 import SessionSummary from './pages/SessionSummary';
+import FeedbackReport from './pages/FeedbackReport';
+
+
 function App() {
   return (
     <AuthProvider>
@@ -27,6 +30,10 @@ function App() {
           <Route path="/interview-session/:id" element={<ProtectedRoute><InterviewSession /> </ProtectedRoute>} />
           <Route path="/session-details/:id" element={<ProtectedRoute><SessionDetails /></ProtectedRoute>} />
           <Route path="/session-summary/:id" element={<ProtectedRoute><SessionSummary /></ProtectedRoute>} />
+          <Route 
+            path="/feedback-report/:id" 
+            element={<ProtectedRoute><FeedbackReport /></ProtectedRoute>} 
+          />
           <Route 
             path="/dashboard" 
             element={

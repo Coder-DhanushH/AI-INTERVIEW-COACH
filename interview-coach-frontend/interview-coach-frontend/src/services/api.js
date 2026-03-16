@@ -112,4 +112,78 @@ export const sessionsAPI = {
   getSessionDetails: (sessionId) => api.get(`/api/sessions/${sessionId}`),
 };
 
+// Evaluation API
+export const evaluationAPI = {
+  // Evaluate all answers in a session
+  evaluateSession: (sessionId) => 
+    api.post('/api/evaluation/evaluate-session', { session_id: sessionId }),
+  
+  // Evaluate a single answer
+  evaluateAnswer: (sessionQuestionId) => 
+    api.post('/api/evaluation/evaluate-answer', { session_question_id: sessionQuestionId }),
+  
+  // Get evaluation results
+  getResults: (sessionId) => 
+    api.get(`/api/evaluation/results/${sessionId}`)
+};
+
+export const analyticsAPI = {
+  getPerformanceTrends: () => api.get('/api/analytics/performance-trends'),
+  getCategoryPerformance: () => api.get('/api/analytics/category-performance'),
+  getStrengthsWeaknesses: () => api.get('/api/analytics/strengths-weaknesses'),
+  getOverallStats: () => api.get('/api/analytics/overall-stats')
+};
+
+// Add audio API
+export const audioAPI = {
+  // Upload audio recording for a session question
+  upload: (sessionQuestionId, formData) => 
+    api.post(`/api/audio/upload/${sessionQuestionId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
+  
+  // Get audio recording
+  get: (sessionQuestionId) => 
+    api.get(`/api/audio/${sessionQuestionId}`, {
+      responseType: 'blob'
+    }),
+  
+  // Delete audio recording
+  delete: (sessionQuestionId) => 
+    api.delete(`/api/audio/${sessionQuestionId}`)
+};
+
+// Video APIs
+export const videoAPI = {
+  // ⭐ NEW - Upload session video (full interview)
+  uploadSession: (sessionId, formData) => 
+    api.post(`/api/sessions/${sessionId}/video`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  
+  // ⭐ NEW - Get session video metrics
+  getSessionMetrics: (sessionId) => 
+    api.get(`/api/sessions/${sessionId}/video/metrics`),
+  
+  // ⭐ NEW - Delete session video
+  deleteSessionVideo: (sessionId) => 
+    api.delete(`/api/sessions/${sessionId}/video`),
+  
+  // Old per-question methods (can keep for backward compatibility)
+  upload: (sessionQuestionId, formData) => 
+    api.post(`/api/video/upload/${sessionQuestionId}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  
+  get: (sessionQuestionId) => 
+    api.get(`/api/video/${sessionQuestionId}`, {
+      responseType: 'blob'
+    }),
+  
+  delete: (sessionQuestionId) => 
+    api.delete(`/api/video/${sessionQuestionId}`)
+};
+
 export default api;
