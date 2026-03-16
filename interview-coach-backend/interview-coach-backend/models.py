@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Boolean
+from sqlalchemy import Column, Float, Integer, String, DateTime, Text, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
@@ -26,6 +26,7 @@ class User(Base):
     
     # Relationship
     resume = relationship("Resume", back_populates="user", uselist=False)
+    sessions = relationship("InterviewSession", back_populates="user", cascade="all, delete-orphan")
 
 class Resume(Base):
     __tablename__ = "resumes"
@@ -61,7 +62,8 @@ class QuestionCategory(Base):
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
+    
+    questions = relationship("Question", back_populates="category", cascade="all, delete-orphan")
 
 class Question(Base):
     """Interview questions (AI-generated or predefined)"""
@@ -75,6 +77,8 @@ class Question(Base):
     is_ai_generated = Column(Boolean, default=False)
     question_metadata = Column(JSONB, nullable=True, default=lambda: {})  # Store additional info
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    category = relationship("QuestionCategory", back_populates="questions")
 
 class QuestionGenerateRequest(BaseModel):
     category_id: int
@@ -107,6 +111,13 @@ class InterviewSession(Base):
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True))
 
+    video_url = Column(String(500), nullable=True)
+    video_duration = Column(Integer, nullable=True)  # Duration in seconds
+    video_analysis = Column(JSONB, default={})
+
+    user = relationship("User", back_populates="sessions")
+    session_questions = relationship("SessionQuestion", back_populates="session", cascade="all, delete-orphan")
+
 
 class SessionQuestion(Base):
     """Questions in a specific session with user answers"""
@@ -119,5 +130,20 @@ class SessionQuestion(Base):
     answer_text = Column(Text)
     time_taken = Column(Integer)  # seconds
     answered_at = Column(DateTime(timezone=True))
-    score = Column(Integer)  # 0-100 (for future evaluation)
-    feedback = Column(Text)  # for future evaluation
+    score = Column(Integer)  # 0-100 
+    feedback = Column(Text)  # for future evaluation.
+    evaluation_metadata = Column(JSONB, default=lambda: {})
+    # speech analysis fields
+    audio_url = Column(String(500), nullable=True)
+    audio_duration = Column(Integer, nullable=True)  # in seconds
+    speech_metrics = Column(JSONB, default=lambda: {})
+    
+    
+    #Evaluation columns
+    evaluation_metadata = Column(JSONB, default={})
+    score = Column(Float, nullable=True)
+    
+    #Relationships
+    session = relationship("InterviewSession", back_populates="session_questions")
+    question = relationship("Question")
+    

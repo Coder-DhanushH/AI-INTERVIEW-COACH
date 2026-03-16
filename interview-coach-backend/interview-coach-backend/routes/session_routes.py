@@ -255,7 +255,8 @@ async def submit_answer(
     return {
         "success": True,
         "answered_count": answered_count,
-        "total_questions": session.total_questions
+        "total_questions": session.total_questions,
+        "session_question_id": session_q.id # added when speech Transcription feature was added
     }
 
 @router.post("/{session_id}/complete")
