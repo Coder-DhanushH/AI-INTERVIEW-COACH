@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 from fastapi.staticfiles import StaticFiles
-from routes import auth_routes, password_reset_routes, user_routes, resume_routes, stats_routes, question_routes, session_routes, evaluation_routes, analytics_routes, audio_routes, session_video_routes
+from routes import auth_routes, password_reset_routes, user_routes, resume_routes, stats_routes, question_routes, session_routes, evaluation_routes, analytics_routes, audio_routes, session_video_routes, resume_analysis_routes
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -44,6 +44,7 @@ app.include_router(evaluation_routes.router)
 app.include_router(analytics_routes.router)
 app.include_router(audio_routes.router)
 app.include_router(session_video_routes.router)
+app.include_router(resume_analysis_routes.router)
 
 @app.get("/")
 async def root():

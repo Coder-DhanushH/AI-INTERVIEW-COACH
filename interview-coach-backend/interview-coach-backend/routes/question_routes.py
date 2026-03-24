@@ -1,5 +1,6 @@
+from models import Resume
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -15,6 +16,7 @@ async def generate_questions(
     request: QuestionGenerateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
+    #use_resume: bool = Query(False)
 ):
     """Generate questions using AI"""
     
@@ -26,12 +28,28 @@ async def generate_questions(
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     
+    resume_text = None
+    resume_available = False
+    
+    if request.use_resume:
+        resume = db.query(Resume).filter(
+            Resume.user_id == current_user.id
+        ).first()
+        
+        if resume and resume.parsed_text:
+            resume_text = resume.parsed_text
+            resume_available = True
+            print(f"✅ Using resume for personalization ({len(resume_text)} chars)")
+        else:
+            print("⚠️ Resume requested but not found or no text")
+
     # Generate questions using LLM
     generated_questions = LLMService.generate_questions(
         role=category.name,
         difficulty=request.difficulty,
         count=request.count,
-        question_type=request.question_type
+        question_type=request.question_type,
+        resume_text=resume_text if resume_available else None
     )
     
     # Save to database
@@ -57,6 +75,8 @@ async def generate_questions(
     return {
         "success": True,
         "questions": saved_questions,
+        "personalized": resume_available,  
+        "resume_used": resume_available,
         "count": len(saved_questions)
     }
 

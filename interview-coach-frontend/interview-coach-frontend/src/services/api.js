@@ -186,4 +186,10 @@ export const videoAPI = {
     api.delete(`/api/video/${sessionQuestionId}`)
 };
 
+export const resumeAnalysisAPI = {
+  // Analyze resume
+  getAnalysis: () => api.get('/api/resume/analysis'),
+  analyzeResume: () => api.post('/api/resume/analysis/analyze')
+};
+
 export default api;

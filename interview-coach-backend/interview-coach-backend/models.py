@@ -85,6 +85,7 @@ class QuestionGenerateRequest(BaseModel):
     difficulty: str  # "Easy", "Medium", "Hard"
     count: int = 5
     question_type: str = "mixed"  # "behavioral", "technical", "mixed"
+    use_resume: bool = False 
 
 class QuestionResponse(BaseModel):
     id: int
@@ -147,3 +148,45 @@ class SessionQuestion(Base):
     session = relationship("InterviewSession", back_populates="session_questions")
     question = relationship("Question")
     
+class ResumeAnalysis(Base):
+    __tablename__ = "resume_analyses"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    resume_id = Column(Integer, ForeignKey("resumes.id", ondelete="CASCADE"))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    
+    # Overall Scores
+    overall_score = Column(Float, default=0.0)
+    
+    # Category Scores
+    content_score = Column(Float, default=0.0)
+    formatting_score = Column(Float, default=0.0)
+    ats_score = Column(Float, default=0.0)
+    keywords_score = Column(Float, default=0.0)
+    experience_score = Column(Float, default=0.0)
+    education_score = Column(Float, default=0.0)
+    skills_score = Column(Float, default=0.0)
+    
+    # Analysis Results
+    strengths = Column(JSONB, default=[])
+    weaknesses = Column(JSONB, default=[])
+    improvements = Column(JSONB, default=[])
+    
+    # Detailed Analysis
+    section_analysis = Column(JSONB, default={})
+    keyword_analysis = Column(JSONB, default={})
+    ats_compatibility = Column(JSONB, default={})
+    
+    # Recommendations
+    action_items = Column(JSONB, default=[])
+    best_practices = Column(JSONB, default=[])
+    
+    # Metadata
+    analysis_version = Column(String(20), default='v1.0')
+    analyzed_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    resume = relationship("Resume", backref="analyses")
+    user = relationship("User")
