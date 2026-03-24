@@ -377,7 +377,9 @@ const Dashboard = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                 </div>
-                <p className="text-3xl font-bold text-green-600">+{stats.improvement}%</p>
+                <p className={`text-3xl font-bold ${stats.improvement >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  {stats.improvement >= 0 ? '+' : ''}{stats.improvement}%
+                </p>
               </div>
 
               {/* Progress This Week */}
@@ -408,6 +410,21 @@ const Dashboard = () => {
                   <div className="text-left">
                     <p className="font-semibold">New Interview</p>
                     <p className="text-sm opacity-90">Start a practice session</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => navigate('/resume-analysis')}
+                  className="flex items-center space-x-4 p-4 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
+                >
+                  <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold">Resume Analysis</p>
+                    <p className="text-sm opacity-90">Get AI-powered feedback</p>
                   </div>
                 </button>
 

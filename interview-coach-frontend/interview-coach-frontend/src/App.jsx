@@ -13,6 +13,8 @@ import InterviewSession from './pages/InterviewSession';
 import SessionDetails from './pages/SessionDetails';
 import SessionSummary from './pages/SessionSummary';
 import FeedbackReport from './pages/FeedbackReport';
+import ResumeAnalysis from './pages/ResumeAnalysis';
+
 
 
 function App() {
@@ -25,6 +27,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/resume-analysis" element={<ProtectedRoute><ResumeAnalysis /></ProtectedRoute>} />
           <Route path="/question-setup" element={<ProtectedRoute><QuestionSetup /></ProtectedRoute>} />
           <Route path="/interview-session" element={<ProtectedRoute><InterviewSession /> </ProtectedRoute>} />
           <Route path="/interview-session/:id" element={<ProtectedRoute><InterviewSession /> </ProtectedRoute>} />

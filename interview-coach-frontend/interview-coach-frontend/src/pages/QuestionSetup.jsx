@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { questionsAPI, sessionsAPI } from '../services/api';
+import { questionsAPI, sessionsAPI, resumeAPI } from '../services/api';
 
 const QuestionSetup = () => {
   const navigate = useNavigate();
@@ -18,14 +18,32 @@ const QuestionSetup = () => {
   const [cameraError, setCameraError] = useState('');
   const videoPreviewRef = useRef(null);
   const streamRef = useRef(null);
+  const [useResume, setUseResume] = useState(false);
+  const [hasResume, setHasResume] = useState(false);
 
   // ⭐ Single useEffect — no duplicate
   useEffect(() => {
     fetchCategories();
+    checkResume(); 
     return () => {
       stopCameraPreview();
     };
   }, []);
+
+  const checkResume = async () => {
+    try {
+      const response = await resumeAPI.get();
+      if (response.data && response.data.parsed_text) {
+        setHasResume(true);
+        console.log('✅ Resume available');
+      } else {
+        setHasResume(false);
+      }
+    } catch (error) {
+      console.log('No resume found');
+      setHasResume(false);
+    }
+  };
 
   // ⭐ Start/stop camera when mode changes
   useEffect(() => {
@@ -147,7 +165,8 @@ const QuestionSetup = () => {
         category_id: parseInt(selectedCategory),
         difficulty,
         count: questionCount,
-        question_type: questionType
+        question_type: questionType,
+        use_resume: useResume
       });
 
       const generatedQuestions = questionsResponse.data.questions;
@@ -410,6 +429,59 @@ const QuestionSetup = () => {
               <option value="technical">Technical Only</option>
             </select>
           </div>
+
+          {/* Resume Personalization Toggle */}
+          {hasResume && (
+            <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="use-resume"
+                    type="checkbox"
+                    checked={useResume}
+                    onChange={(e) => setUseResume(e.target.checked)}
+                    className="w-5 h-5 text-primary bg-white border-gray-300 rounded focus:ring-primary focus:ring-2 cursor-pointer"
+                  />
+                </div>
+                <div className="ml-3">
+                  <label htmlFor="use-resume" className="font-semibold text-gray-900 cursor-pointer flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Use My Resume for Personalized Questions
+                  </label>
+                  <p className="text-sm text-gray-600 mt-1">
+                    ✨ Generate questions tailored to your experience, skills, and projects
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Show this if NO resume */}
+          {!hasResume && (
+            <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-semibold text-yellow-900">
+                    Want personalized questions?
+                  </p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Upload your resume to get questions tailored to your experience and skills.
+                  </p>
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="mt-2 text-sm text-yellow-800 underline hover:text-yellow-900"
+                  >
+                    Upload Resume →
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Generate Button */}
           <button
