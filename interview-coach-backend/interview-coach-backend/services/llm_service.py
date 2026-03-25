@@ -77,8 +77,7 @@ class LLMService:
     - Questions should be realistic and commonly asked
     - Include a mix of behavioral and technical questions if type is "mixed"
     - Questions should be appropriate for {difficulty} difficulty level
-    - Return ONLY a JSON array with this exact structure:
-
+    Return ONLY a JSON array with this exact structure:
     [
     {{
         "question": "Question text here",
